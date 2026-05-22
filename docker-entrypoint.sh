@@ -40,6 +40,40 @@ if [ ! -d "/var/www/html/include/tmp" ]; then
     chmod -R 777 /var/www/html/include/tmp
 fi
 
+# Post-installation hardening
+OST_CONFIG="/var/www/html/include/ost-config.php"
+SETUP_DIR="/var/www/html/setup"
+
+# Check if osTicket is installed (config has DB credentials)
+if [ -f "$OST_CONFIG" ] && grep -q "DBNAME\|mysql" "$OST_CONFIG" 2>/dev/null; then
+    echo "=========================================="
+    echo "  Post-Installation Hardening"
+    echo "=========================================="
+
+    # Secure ost-config.php - remove write access (but keep readable by www-data)
+    chmod 644 "$OST_CONFIG"
+    chown www-data:www-data "$OST_CONFIG"
+    echo "[OK] Secured ost-config.php (mode 644)"
+
+    # Remove setup directory for security
+    if [ -d "$SETUP_DIR" ]; then
+        rm -rf "$SETUP_DIR"
+        echo "[OK] Removed setup directory"
+    fi
+
+    # Secure other directories (remove world-write)
+    for dir in imagesupload scp attachments; do
+        if [ -d "/var/www/html/$dir" ]; then
+            chmod -R 755 "/var/www/html/$dir"
+            echo "[OK] Secured $dir directory"
+        fi
+    done
+
+    echo "=========================================="
+    echo "  Hardening Complete!"
+    echo "=========================================="
+fi
+
 echo "=========================================="
 echo "  Starting Apache..."
 echo "=========================================="
