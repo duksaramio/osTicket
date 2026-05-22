@@ -25,6 +25,20 @@ if [ ! -f "/var/www/html/include/ost-config.php" ]; then
     fi
 fi
 
+# Substitute environment variables into ost-config.php
+if [ -f "/var/www/html/include/ost-config.php" ]; then
+    sed -i "s|%CONFIG-DBHOST|${DB_HOST:-osticket-db}|g" /var/www/html/include/ost-config.php
+    sed -i "s|%CONFIG-DBNAME|${DB_NAME:-osticket}|g" /var/www/html/include/ost-config.php
+    sed -i "s|%CONFIG-DBUSER|${DB_USER:-osticket}|g" /var/www/html/include/ost-config.php
+    sed -i "s|%CONFIG-DBPASS|${DB_PASSWORD:-osticket_pass}|g" /var/www/html/include/ost-config.php
+    sed -i "s|%CONFIG-PREFIX|${TABLE_PREFIX:-ost_}|g" /var/www/html/include/ost-config.php
+    sed -i "s|%CONFIG-SIRI|$(openssl rand -hex 32 2>/dev/null || echo 'changeme123456789')|g" /var/www/html/include/ost-config.php
+    sed -i "s|%ADMIN-EMAIL|${ADMIN_EMAIL:-admin@localhost}|g" /var/www/html/include/ost-config.php
+    # Mark osTicket as installed when DB credentials are properly configured
+    sed -i "s/define('OSTINSTALLED',FALSE)/define('OSTINSTALLED',TRUE)/g" /var/www/html/include/ost-config.php
+    echo "Substituted environment variables into ost-config.php"
+fi
+
 # Ensure key directories are writable
 for dir in imagesupload scp attachments; do
     if [ -d "/var/www/html/$dir" ]; then
@@ -44,30 +58,23 @@ fi
 OST_CONFIG="/var/www/html/include/ost-config.php"
 SETUP_DIR="/var/www/html/setup"
 
-# Check if osTicket is installed (config has DB credentials)
-if [ -f "$OST_CONFIG" ] && grep -q "DBNAME\|mysql" "$OST_CONFIG" 2>/dev/null; then
+# Check if osTicket is fully installed (OSTINSTALLED is TRUE, meaning web installer completed)
+# Only remove setup if osTicket has been fully installed through the web installer
+if [ -f "$OST_CONFIG" ] && grep -q "define('OSTINSTALLED',TRUE)" "$OST_CONFIG" 2>/dev/null; then
     echo "=========================================="
     echo "  Post-Installation Hardening"
     echo "=========================================="
 
-    # Secure ost-config.php - remove write access (but keep readable by www-data)
-    chmod 644 "$OST_CONFIG"
+    # Secure ost-config.php - remove world-write (keep 640 for www-data read)
+    chmod 640 "$OST_CONFIG"
     chown www-data:www-data "$OST_CONFIG"
-    echo "[OK] Secured ost-config.php (mode 644)"
+    echo "[OK] Secured ost-config.php (mode 640)"
 
     # Remove setup directory for security
     if [ -d "$SETUP_DIR" ]; then
         rm -rf "$SETUP_DIR"
         echo "[OK] Removed setup directory"
     fi
-
-    # Secure other directories (remove world-write)
-    for dir in imagesupload scp attachments; do
-        if [ -d "/var/www/html/$dir" ]; then
-            chmod -R 755 "/var/www/html/$dir"
-            echo "[OK] Secured $dir directory"
-        fi
-    done
 
     echo "=========================================="
     echo "  Hardening Complete!"
