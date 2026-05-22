@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+plans/
+README.docker.md
+UPGRADING.txt
+
+# Development files
+*.md
+*.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Empty/unused directories to exclude
+# (they will be created during build if needed)
+/logs/
+/tmp/
+/cache/

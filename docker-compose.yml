@@ -1,0 +1,66 @@
+# osTicket Docker Compose Configuration
+services:
+  # Database Service
+  osticket-db:
+    image: mysql:8.0
+    container_name: osticket-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-osticket_root_pass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-osticket}
+      MYSQL_USER: ${MYSQL_USER:-osticket}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-osticket_pass}
+    volumes:
+      - osticket-db-data:/var/lib/mysql
+    networks:
+      - osticket-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Web Application Service
+  osticket-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: osticket-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    environment:
+      DB_HOST: osticket-db
+      DB_NAME: ${MYSQL_DATABASE:-osticket}
+      DB_USER: ${MYSQL_USER:-osticket}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-osticket_pass}
+    volumes:
+      - osticket-uploads:/var/www/html/upload
+    networks:
+      - osticket-network
+    depends_on:
+      osticket-db:
+        condition: service_healthy
+
+  # Optional Redis Cache Service
+  # Uncomment to enable Redis for session handling and caching
+  # osticket-redis:
+  #   image: redis:7-alpine
+  #   container_name: osticket-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - osticket-redis-data:/data
+  #   networks:
+  #     - osticket-network
+
+networks:
+  osticket-network:
+    driver: bridge
+
+volumes:
+  osticket-db-data:
+    driver: local
+  osticket-uploads:
+    driver: local
